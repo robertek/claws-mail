@@ -163,7 +163,12 @@ static void folderview_col_resized	(GtkCMCList	*clist,
 					 gint		 width,
 					 FolderView	*folderview);
 
+static void mark_all_read_handler (GtkAction *action, 
+           gpointer data, gboolean recursive);
+
 static void mark_all_read_cb            (GtkAction 	*action,
+					 gpointer	 data);
+static void mark_all_read_recursive_cb  (GtkAction 	*action,
 					 gpointer	 data);
 
 static void folderview_empty_trash_cb	(GtkAction 	*action,
@@ -228,6 +233,7 @@ static GtkActionEntry folderview_common_popup_entries[] =
 {
 	{"FolderViewPopup",			NULL, "FolderViewPopup" },
 	{"FolderViewPopup/MarkAllRead",		NULL, N_("Mark all re_ad"), NULL, NULL, G_CALLBACK(mark_all_read_cb) },
+	{"FolderViewPopup/MarkAllReadRecursive",		NULL, N_("Mark all read _recursive"), NULL, NULL, G_CALLBACK(mark_all_read_recursive_cb) },
 	{"FolderViewPopup/---",			NULL, "---" },
 	{"FolderViewPopup/RunProcessing",	NULL, N_("R_un processing rules"), NULL, NULL, G_CALLBACK(folderview_run_processing_cb) },
 	{"FolderViewPopup/SearchFolder",	NULL, N_("_Search folder..."), NULL, NULL, G_CALLBACK(folderview_search_cb) },
@@ -782,7 +788,20 @@ void folderview_select(FolderView *folderview, FolderItem *item)
 		folder_update_op_count();
 }
 
+
 static void mark_all_read_cb(GtkAction *action, gpointer data)
+{
+  debug_print("Marking all read in selected folder.\n");
+  mark_all_read_handler(action, data, FALSE);
+}
+
+static void mark_all_read_recursive_cb(GtkAction *action, gpointer data)
+{
+  debug_print("Marking recursively all read in selected folder.\n");
+  mark_all_read_handler(action, data, TRUE);
+}
+
+static void mark_all_read_handler(GtkAction *action, gpointer data, gboolean recursive)
 {
 	FolderView *folderview = (FolderView *)data;
 	FolderItem *item;
@@ -812,7 +831,10 @@ static void mark_all_read_cb(GtkAction *action, gpointer data)
 	else
 		summary_freeze(folderview->summaryview);
 		
-	folderutils_mark_all_read(item);
+  if (recursive)
+	  folderutils_mark_all_read_recursive(item);
+  else
+	  folderutils_mark_all_read(item);
 	
 	if (folderview->summaryview->folder_item != item)
 		summary_unlock(folderview->summaryview);
@@ -1859,6 +1881,7 @@ static void folderview_set_sens_and_popup_menu(FolderView *folderview, gint row,
 		fpopup->add_menuitems(ui_manager, item);
 
 	MENUITEM_ADDUI_MANAGER(ui_manager, "/Popup/FolderViewPopup", "MarkAllRead", "FolderViewPopup/MarkAllRead", GTK_UI_MANAGER_MENUITEM)
+	MENUITEM_ADDUI_MANAGER(ui_manager, "/Popup/FolderViewPopup", "MarkAllReadRecursive", "FolderViewPopup/MarkAllReadRecursive", GTK_UI_MANAGER_MENUITEM)
 	MENUITEM_ADDUI_MANAGER(ui_manager, "/Popup/FolderViewPopup", "Separator1", "FolderViewPopup/---", GTK_UI_MANAGER_SEPARATOR)
 	MENUITEM_ADDUI_MANAGER(ui_manager, "/Popup/FolderViewPopup", "RunProcessing", "FolderViewPopup/RunProcessing", GTK_UI_MANAGER_MENUITEM)
 	MENUITEM_ADDUI_MANAGER(ui_manager, "/Popup/FolderViewPopup", "SearchFolder", "FolderViewPopup/SearchFolder", GTK_UI_MANAGER_MENUITEM)
@@ -1889,6 +1912,7 @@ static void folderview_set_sens_and_popup_menu(FolderView *folderview, gint row,
 	cm_menu_set_sensitive_full(ui_manager, "Popup/"name, sens)
 
 	SET_SENS("FolderViewPopup/MarkAllRead", item->unread_msgs >= 1);
+	SET_SENS("FolderViewPopup/MarkAllReadRecursive", item->folder != NULL);
 	SET_SENS("FolderViewPopup/SearchFolder", item->total_msgs >= 1 && 
 		 folderview->selected == folderview->opened);
 	SET_SENS("FolderViewPopup/Properties", TRUE);
